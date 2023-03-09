@@ -81,7 +81,7 @@ func (item *CacheItem) AccessCount() int64 {
 }
 
 // Key returns the key of this cached item.
-func (item *CacheItem) Key() any {
+func (item *CacheItem) Key() string {
 	// immutable
 	return item.key
 }

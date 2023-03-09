@@ -17,7 +17,7 @@ var (
 func TestCache(t *testing.T) {
 	// add an expiring item after a non-expiring one to
 	// trigger expirationCheck iterating over non-expiring items
-	table := NewCacheTable("testCache")
+	table := CacheTable("testCache")
 	table.Add(k+"_1", 0*time.Second, v)
 	table.Add(k+"_2", 1*time.Second, v)
 
@@ -47,7 +47,7 @@ func TestCache(t *testing.T) {
 }
 
 func TestCacheExpire(t *testing.T) {
-	table := NewCacheTable("testCache")
+	table := CacheTable("testCache")
 
 	table.Add(k+"_1", 250*time.Millisecond, v+"_1")
 	table.Add(k+"_2", 200*time.Millisecond, v+"_2")
@@ -77,7 +77,7 @@ func TestCacheExpire(t *testing.T) {
 
 func TestExists(t *testing.T) {
 	// add an expiring item
-	table := NewCacheTable("testExists")
+	table := CacheTable("testExists")
 	table.Add(k, 0, v)
 	// check if it exists
 	if !table.Exists(k) {
@@ -86,7 +86,7 @@ func TestExists(t *testing.T) {
 }
 
 func TestNotFoundAdd(t *testing.T) {
-	table := NewCacheTable("testNotFoundAdd")
+	table := CacheTable("testNotFoundAdd")
 
 	if !table.NotFoundAdd(k, 0, v) {
 		t.Error("Error verifying NotFoundAdd, data not in cache")
@@ -98,7 +98,7 @@ func TestNotFoundAdd(t *testing.T) {
 }
 
 func TestNotFoundAddConcurrency(t *testing.T) {
-	table := NewCacheTable("testNotFoundAdd")
+	table := CacheTable("testNotFoundAdd")
 
 	var finish sync.WaitGroup
 	var added int32
@@ -140,7 +140,7 @@ func TestNotFoundAddConcurrency(t *testing.T) {
 
 func TestCacheKeepAlive(t *testing.T) {
 	// add an expiring item
-	table := NewCacheTable("testKeepAlive")
+	table := CacheTable("testKeepAlive")
 	p := table.Add(k, 250*time.Millisecond, v)
 
 	// keep it alive before it expires
@@ -162,7 +162,7 @@ func TestCacheKeepAlive(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	// add an item to the cache
-	table := NewCacheTable("testDelete")
+	table := CacheTable("testDelete")
 	table.Add(k, 0, v)
 	// check it's really cached
 	p, ok := table.GetAndKeepAlive(k)
@@ -186,7 +186,7 @@ func TestDelete(t *testing.T) {
 
 func TestFlush(t *testing.T) {
 	// add an item to the cache
-	table := NewCacheTable("testFlush")
+	table := CacheTable("testFlush")
 	table.Add(k, 10*time.Second, v)
 	// flush the entire table
 	table.Flush()
@@ -204,7 +204,7 @@ func TestFlush(t *testing.T) {
 
 func TestCount(t *testing.T) {
 	// add a huge amount of items to the cache
-	table := NewCacheTable("testCount")
+	table := CacheTable("testCount")
 	count := 100000
 	for i := 0; i < count; i++ {
 		key := k + strconv.Itoa(i)
@@ -226,7 +226,7 @@ func TestCount(t *testing.T) {
 
 func TestDataLoader(t *testing.T) {
 	// setup a cache with a configured data-loader
-	table := NewCacheTable("testDataLoader")
+	table := CacheTable("testDataLoader")
 	table.SetDataLoader(func(key string, args ...any) (*CacheItem, bool) {
 
 		val := "loaded from somewhere"
@@ -245,7 +245,7 @@ func TestDataLoader(t *testing.T) {
 func TestAccessCount(t *testing.T) {
 	// add 100 items to the cache
 	count := 100
-	table := NewCacheTable("testAccessCount")
+	table := CacheTable("testAccessCount")
 	for i := 0; i < count; i++ {
 		table.Add(fmt.Sprint(i), 10*time.Second, v)
 	}
@@ -282,10 +282,10 @@ func TestCallbacks(t *testing.T) {
 	calledExpired := false
 
 	// setup a cache with AddedItem & SetAboutToDelete handlers configured
-	table := NewCacheTable("testCallbacks")
+	table := CacheTable("testCallbacks")
 	table.AddAddedItemCallback(func(item *CacheItem) {
 		m.Lock()
-		addedKey = item.Key().(string)
+		addedKey = item.Key()
 		m.Unlock()
 	})
 	table.AddAddedItemCallback(func(item *CacheItem) {
@@ -295,7 +295,7 @@ func TestCallbacks(t *testing.T) {
 	})
 	table.AddAddedItemCallback(func(item *CacheItem) {
 		m.Lock()
-		removedKey = item.Key().(string)
+		removedKey = item.Key()
 		m.Unlock()
 	})
 
@@ -349,12 +349,12 @@ func TestCallbackQueue(t *testing.T) {
 	expired := false
 	calledExpired := false
 	// setup a cache with AddedItem & SetAboutToDelete handlers configured
-	table := NewCacheTable("testCallbacks")
+	table := CacheTable("testCallbacks")
 
 	// test callback queue
 	table.AddAddedItemCallback(func(item *CacheItem) {
 		m.Lock()
-		addedKey = item.Key().(string)
+		addedKey = item.Key()
 		m.Unlock()
 	})
 	table.AddAddedItemCallback(func(item *CacheItem) {
@@ -365,7 +365,7 @@ func TestCallbackQueue(t *testing.T) {
 
 	table.AddAboutToDeleteItemCallback(func(item *CacheItem) {
 		m.Lock()
-		removedKey = item.Key().(string)
+		removedKey = item.Key()
 		m.Unlock()
 	})
 	table.AddAboutToDeleteItemCallback(func(item *CacheItem) {

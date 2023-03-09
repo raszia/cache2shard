@@ -15,7 +15,7 @@ type myStruct struct {
 
 func main() {
 	// Accessing a new cache table for the first time will create it.
-	cache := cache2shard.NewCacheTable("myCache")
+	cache := cache2shard.CacheTable("myCache")
 
 	// We will put a new item in the cache. It will expire after
 	// not being accessed via Value(key) for more than 5 seconds.

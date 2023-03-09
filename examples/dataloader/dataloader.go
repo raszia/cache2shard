@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	cache := cache2shard.NewCacheTable("myCache")
+	cache := cache2shard.CacheTable("myCache")
 
 	// The data loader gets called automatically whenever something
 	// tries to retrieve a non-existing key from the cache.

@@ -10,7 +10,7 @@ import (
 )
 
 func BenchmarkNotFoundAdd(b *testing.B) {
-	table := cache2shard.NewCacheTable("testNotFoundAdd")
+	table := cache2shard.CacheTable("testNotFoundAdd")
 	testData := "testData"
 
 	for j := 0; j < 100000; j++ {
@@ -29,7 +29,7 @@ func toKey(i int) string {
 	return fmt.Sprintf("item:%d", i)
 }
 func BenchmarkCache2Shard(b *testing.B) {
-	c := cache2shard.NewCacheTable("test")
+	c := cache2shard.CacheTable("test")
 
 	b.Run("Set", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -72,7 +72,7 @@ func BenchmarkAccessCount(b *testing.B) {
 	// add 1000 items to the cache
 	v := "testvalue"
 	count := 1000
-	table := cache2shard.NewCacheTable("testAccessCount")
+	table := cache2shard.CacheTable("testAccessCount")
 	for i := 0; i < count; i++ {
 		table.Add(fmt.Sprint(i), 10*time.Second, v)
 	}
@@ -91,7 +91,7 @@ func BenchmarkAccessCount(b *testing.B) {
 }
 
 func BenchmarkCache2shard(b *testing.B) {
-	c := cache2shard.NewCacheTable("test")
+	c := cache2shard.CacheTable("test")
 	b.Run("SetOrginal", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			c.Add(toKey(i), 1*time.Minute, toKey(i))

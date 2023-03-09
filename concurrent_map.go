@@ -8,36 +8,36 @@ var SHARD_COUNT = 32
 
 // A "thread" safe map of type string:Anything.
 // To avoid lock bottlenecks this map is dived to several (SHARD_COUNT) map shards.
-type ConcurrentMap[K comparable, V *CacheItem] struct {
-	shards   []*ConcurrentMapShared[K, V]
-	sharding func(key K) uint32
+type ConcurrentMap struct {
+	shards   []*ConcurrentMapShared
+	sharding func(key string) uint32
 }
 
 // A "thread" safe string to anything map.
-type ConcurrentMapShared[K comparable, V *CacheItem] struct {
-	items        map[K]V
+type ConcurrentMapShared struct {
+	items        map[string]*CacheItem
 	sync.RWMutex // Read Write mutex, guards access to internal map.
 }
 
 // Creates a new concurrent map.
-func createCMAP[K comparable, V *CacheItem](sharding func(key K) uint32) ConcurrentMap[K, V] {
-	m := ConcurrentMap[K, V]{
+func createCMAP(sharding func(key string) uint32) ConcurrentMap {
+	m := ConcurrentMap{
 		sharding: sharding,
-		shards:   make([]*ConcurrentMapShared[K, V], SHARD_COUNT),
+		shards:   make([]*ConcurrentMapShared, SHARD_COUNT),
 	}
 	for i := 0; i < SHARD_COUNT; i++ {
-		m.shards[i] = &ConcurrentMapShared[K, V]{items: make(map[K]V)}
+		m.shards[i] = &ConcurrentMapShared{items: make(map[string]*CacheItem)}
 	}
 	return m
 }
 
 // getShard returns shard under given key
-func (m ConcurrentMap[K, V]) getShard(key K) *ConcurrentMapShared[K, V] {
+func (m ConcurrentMap) getShard(key string) *ConcurrentMapShared {
 	return m.shards[uint(m.sharding(key))%uint(SHARD_COUNT)]
 }
 
 // Sets the given value under the specified key.
-func (m ConcurrentMap[K, V]) set(key K, value V) {
+func (m ConcurrentMap) set(key string, value *CacheItem) {
 	// Get map shard.
 	shard := m.getShard(key)
 	shard.Lock()
@@ -46,7 +46,7 @@ func (m ConcurrentMap[K, V]) set(key K, value V) {
 }
 
 // get retrieves an element from map under given key.
-func (m ConcurrentMap[K, V]) get(key K) (V, bool) {
+func (m ConcurrentMap) get(key string) (*CacheItem, bool) {
 	// Get shard
 	shard := m.getShard(key)
 	shard.RLock()
@@ -57,7 +57,7 @@ func (m ConcurrentMap[K, V]) get(key K) (V, bool) {
 }
 
 // count returns the number of elements within the map.
-func (m ConcurrentMap[K, V]) count() int {
+func (m ConcurrentMap) count() int {
 	count := 0
 	for i := 0; i < SHARD_COUNT; i++ {
 		shard := m.shards[i]
@@ -69,7 +69,7 @@ func (m ConcurrentMap[K, V]) count() int {
 }
 
 // Looks up an item under specified key
-func (m ConcurrentMap[K, V]) has(key K) bool {
+func (m ConcurrentMap) has(key string) bool {
 	// Get shard
 	shard := m.getShard(key)
 	shard.RLock()
@@ -80,7 +80,7 @@ func (m ConcurrentMap[K, V]) has(key K) bool {
 }
 
 // remove removes an element from the map.
-func (m ConcurrentMap[K, V]) remove(key K) {
+func (m ConcurrentMap) remove(key string) {
 	// Try to get shard.
 	shard := m.getShard(key)
 	shard.Lock()
@@ -89,48 +89,41 @@ func (m ConcurrentMap[K, V]) remove(key K) {
 }
 
 // Used by the Iter & IterBuffered functions to wrap two variables together over a channel,
-type Tuple[K comparable, V *CacheItem] struct {
-	Key K
-	Val V
+type Tuple struct {
+	key string
+	Val *CacheItem
 }
 
 // iterBuffered returns a buffered iterator which could be used in a for range loop.
-func (m ConcurrentMap[K, V]) iterBuffered() <-chan Tuple[K, V] {
+func (m ConcurrentMap) iterBuffered() <-chan Tuple {
 	chans := snapshot(m)
 	total := 0
 	for _, c := range chans {
 		total += cap(c)
 	}
-	ch := make(chan Tuple[K, V], total)
+	ch := make(chan Tuple, total)
 	go fanIn(chans, ch)
 	return ch
-}
-
-// Clear removes all items from map.
-func (m ConcurrentMap[K, V]) clear() {
-	for item := range m.iterBuffered() {
-		m.remove(item.Key)
-	}
 }
 
 // Returns a array of channels that contains elements in each shard,
 // which likely takes a snapshot of `m`.
 // It returns once the size of each buffered channel is determined,
 // before all the channels are populated using goroutines.
-func snapshot[K comparable, V *CacheItem](m ConcurrentMap[K, V]) (chans []chan Tuple[K, V]) {
+func snapshot(m ConcurrentMap) (chans []chan Tuple) {
 
-	chans = make([]chan Tuple[K, V], SHARD_COUNT)
+	chans = make([]chan Tuple, SHARD_COUNT)
 	wg := sync.WaitGroup{}
 	wg.Add(SHARD_COUNT)
 	// Foreach shard.
 	for index, shard := range m.shards {
-		go func(index int, shard *ConcurrentMapShared[K, V]) {
+		go func(index int, shard *ConcurrentMapShared) {
 			// Foreach key, value pair.
 			shard.RLock()
-			chans[index] = make(chan Tuple[K, V], len(shard.items))
+			chans[index] = make(chan Tuple, len(shard.items))
 			wg.Done()
 			for key, val := range shard.items {
-				chans[index] <- Tuple[K, V]{key, val}
+				chans[index] <- Tuple{key, val}
 			}
 			shard.RUnlock()
 			close(chans[index])
@@ -141,11 +134,11 @@ func snapshot[K comparable, V *CacheItem](m ConcurrentMap[K, V]) (chans []chan T
 }
 
 // fanIn reads elements from channels `chans` into channel `out`
-func fanIn[K comparable, V *CacheItem](chans []chan Tuple[K, V], out chan Tuple[K, V]) {
+func fanIn(chans []chan Tuple, out chan Tuple) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(chans))
 	for _, ch := range chans {
-		go func(ch chan Tuple[K, V]) {
+		go func(ch chan Tuple) {
 			for t := range ch {
 				out <- t
 			}
@@ -154,18 +147,6 @@ func fanIn[K comparable, V *CacheItem](chans []chan Tuple[K, V], out chan Tuple[
 	}
 	wg.Wait()
 	close(out)
-}
-
-// Items returns all items as map[string]V
-func (m ConcurrentMap[K, V]) Items() map[K]V {
-	tmp := make(map[K]V)
-
-	// Insert items to temporary map.
-	for item := range m.iterBuffered() {
-		tmp[item.Key] = item.Val
-	}
-
-	return tmp
 }
 
 // fnv32 is an implementation of the FNV-1a hash.

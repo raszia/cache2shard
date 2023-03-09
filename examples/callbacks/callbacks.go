@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	cache := cache2shard.NewCacheTable("testTable")
+	cache := cache2shard.CacheTable("testTable")
 
 	// This callback will be triggered every time a new item
 	// gets added to the cache.

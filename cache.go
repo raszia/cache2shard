@@ -6,23 +6,23 @@ import (
 
 type cacheMap struct {
 	muRW     sync.RWMutex
-	cacheMap map[string]*CacheTable
+	cacheMap map[string]*cacheTable
 }
 
 var cache = &cacheMap{
 	muRW:     sync.RWMutex{},
-	cacheMap: make(map[string]*CacheTable),
+	cacheMap: make(map[string]*cacheTable),
 }
 
-// NewCacheTable returns the existing cache table with given name or creates a new one
+// CacheTable returns the existing cache table with given name or creates a new one
 // if the table does not exist yet.
-func NewCacheTable(tableName string) *CacheTable {
+func CacheTable(tableName string) *cacheTable {
 	table, ok := cache.get(tableName)
 	if ok {
 		return table
 	}
 
-	table = &CacheTable{
+	table = &cacheTable{
 		name:  tableName,
 		items: createCMAP(fnv32),
 	}
@@ -35,7 +35,7 @@ func DeleteCacheTable(tableName string) bool {
 	return cache.delete(tableName)
 }
 
-func (c *cacheMap) set(tableName string, table *CacheTable) *cacheMap {
+func (c *cacheMap) set(tableName string, table *cacheTable) *cacheMap {
 	c.muRW.Lock()
 	defer c.muRW.Unlock()
 
@@ -43,7 +43,7 @@ func (c *cacheMap) set(tableName string, table *CacheTable) *cacheMap {
 	return c
 }
 
-func (c *cacheMap) get(tableName string) (*CacheTable, bool) {
+func (c *cacheMap) get(tableName string) (*cacheTable, bool) {
 	c.muRW.RLock()
 	defer c.muRW.RUnlock()
 
